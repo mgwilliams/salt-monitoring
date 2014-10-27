@@ -20,10 +20,14 @@ Module for Firing Events via PagerDuty
 # Import python libs
 import yaml
 import json
+import logging
 
 # Import salt libs
 import salt.utils.pagerduty
 from salt._compat import string_types
+
+
+log = logging.getLogger(__name__)
 
 
 def __virtual__():
@@ -109,29 +113,38 @@ def create_event(service_key=None, description=None, details=None,
     return ret
 
 
-def trigger(profile, tag, status, description, details, url=None):
+def alert(profile, tag, status, description, details, failure=True, url=None):
     description = '{0}: {1}'.format(status, description)
     service_key = profile.pop('service_key')
-    trigger_url = 'https://events.pagerduty.com/generic/2010-04-15/create_event.json'
+    trigger_url = ('https://events.pagerduty.com/generic/'
+                   '2010-04-15/create_event.json')
 
     if isinstance(details, string_types):
         details = yaml.safe_load(details)
         if isinstance(details, string_types):
             details = {'details': details}
 
+    data = {
+        'service_key': service_key,
+        'incident_key': tag,
+        'description': description,
+        'details': details
+    }
+
+    if failure:
+        data['event_type'] = 'trigger'
+        data['client_url'] = url
+    else:
+        data['event_type'] = 'resolve'
+
     ret = json.loads(salt.utils.pagerduty.query(
         method='POST',
         service=service_key,
-        data={
-            'service_key': service_key,
-            'incident_key': tag,
-            'event_type': 'trigger',
-            'description': description,
-            'details': details,
-            'client_url': url
-        },
+        data=data,
         url=trigger_url,
         **profile
     ))
-    return ret
 
+    log.info(ret)
+
+    return ret
