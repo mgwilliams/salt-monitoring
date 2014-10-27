@@ -113,7 +113,8 @@ def create_event(service_key=None, description=None, details=None,
     return ret
 
 
-def alert(profile, tag, status, description, details, failure=True, url=None):
+def alert(profile, host, check, status, description, details, failure=True, url=None):
+    tag = '{0}/{1}'.format(host, check)
     description = '{0}: {1}'.format(status, description)
     service_key = profile.pop('service_key')
     trigger_url = ('https://events.pagerduty.com/generic/'
